@@ -1,48 +1,25 @@
-m3u8
-====
+# m3u8-cpp
 
-node-m3u8 is a streaming m3u8 parser tailored for dealing with [Apple's HTTP
-Live Streaming protocol](http://tools.ietf.org/html/draft-pantos-http-live-streaming).
-It may work for other m3u files, but I have not tested it for those uses.
+This is a pure header files library used to parse M3U8.
+Spec depends on [Apple's HTTP Live Streaming protocol](http://tools.ietf.org/html/draft-pantos-http-live-streaming).
 
-example
--------
+I convert the [node-m3u8](https://github.com/tedconf/node-m3u8) from `javascript`
+into `c++` by using `Github Copilot`.
 
-``` js
-var m3u8 = require('m3u8');
-var fs   = require('fs');
+All the test-cases passed but I am still not sure if everything works as expected.
 
-var parser = m3u8.createStream();
-var file   = fs.createReadStream('/path/to/file.m3u8');
-file.pipe(parser);
+## Build
 
-parser.on('item', function(item) {
-  // emits PlaylistItem, MediaItem, StreamItem, and IframeStreamItem
-});
-parser.on('m3u', function(m3u) {
-  // fully parsed m3u file
-});
+```bash
+sudo apt install nlohmann-json3-dev libcurl4-openssl-dev
+mkdir build && cd build
+cmake .. && make -j
 ```
 
-All items and the m3u object have `toString()` methods for conversion to m3u8.
-Attributes and properties have getter/setters on m3u and item objects:
+## Run
 
 ```
-parser.on('item', function(item) {
-  var duration = item.get('bandwidth');
-  item.set('uri', 'http://example.com/' + item.get('uri'));
-});
+./m3u8-test
+./m3u8-example ../test/fixtures/variant.m3u8
+./m3u8-example https://muiplayer.js.org/media/media.m3u8
 ```
-
-The M3U and Item objects are available on m3u8:
-```
-var m3u8 = require('m3u8');
-
-var m3u = m3u8.M3U.create();
-m3u.addPlaylistItem({
-  duration : 10,
-  uri      : 'file'
-});
-```
-
-See tests for more usage patterns.

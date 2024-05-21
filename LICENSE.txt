@@ -1,4 +1,5 @@
 Copyright (c) 2012 TED Conferences
+Copyright (c) 2024 zeerd.com
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
