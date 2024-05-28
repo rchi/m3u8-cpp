@@ -1,10 +1,8 @@
 #pragma once
-#include <string>
-
 #include <m3u8/items/Item.h>
 
 class MediaItem : public Item {
-   public:
+public:
     MediaItem(json data = json::object()) : Item(data)
     {
         propertyList.erase("uri");

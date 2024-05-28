@@ -6,59 +6,48 @@
 
 using json = nlohmann::json;
 
-class ItemTest : public ::testing::Test {
-   protected:
-    Item* createItem()
-    {
-        Item* item = new Item;
-        return item;
-    }
+class ItemTest : public ::testing::Test, public Item {
 };
 
 TEST_F(ItemTest, Set)
 {
-    Item* item = createItem();
+    set("title", "hello there");
+    EXPECT_EQ(propertyList["title"], "hello there");
 
-    item->set("title", "hello there");
-    EXPECT_EQ((*item).propertyList["title"], "hello there");
-
-    item->set("autoselect", true);
-    EXPECT_TRUE(item->attributeList["autoselect"]);
+    set("autoselect", true);
+    EXPECT_TRUE(attributeList["autoselect"]);
 }
 
 TEST_F(ItemTest, Get)
 {
-    Item* item = createItem();
+    setProperty("uri", "/path");
+    setAttribute("autoselect", true);
 
-    item->setProperty("uri", "/path");
-    item->setAttribute("autoselect", true);
+    // std::cerr << dump(2) << "\n";
 
-    // std::cerr << item->dump(2) << "\n";
-
-    std::string uri = item->getProperty("uri");
+    std::string uri = get("uri");
     EXPECT_STREQ(uri.c_str(), "/path");
-    uri = (*item).propertyList["uri"];
+    uri = propertyList["uri"];
     EXPECT_STREQ(uri.c_str(), "/path");
 
-    EXPECT_TRUE(item->attribute("autoselect"));
-    EXPECT_TRUE(item->attributeList["autoselect"]);
+    EXPECT_TRUE(get("autoselect"));
+    EXPECT_TRUE(attributeList["autoselect"]);
 }
 
 TEST_F(ItemTest, SetData)
 {
-    Item* item = createItem();
-    item->setData({{"autoselect", true}, {"uri", "/path"}});
+    setData({{"autoselect", true}, {"uri", "/path"}});
 
-    EXPECT_TRUE(item->get("autoselect"));
-    EXPECT_EQ(item->get("uri"), "/path");
+    EXPECT_TRUE(get("autoselect"));
+    EXPECT_EQ(get("uri"), "/path");
 }
 
 // TEST_F(ItemTest, Serialize) {
 //     Item* item = createItem();
-//     item->setData({{"autoselect", true}, {"uri", "/path"}});
-//     json data = item->serialize();
+//     setData({{"autoselect", true}, {"uri", "/path"}});
+//     json data = serialize();
 
-//     EXPECT_EQ(data["attributes"], item->attributeList.serialize());
+//     EXPECT_EQ(data["attributes"], attributeList.serialize());
 //     EXPECT_EQ(data["["properties"]"], (*item)["properties"]);
 // }
 
@@ -71,7 +60,7 @@ TEST_F(ItemTest, SetData)
 //     };
 //     Item* item = Item::unserialize(data);
 
-//     EXPECT_EQ(item->attributeList, list);
+//     EXPECT_EQ(attributeList, list);
 //     EXPECT_EQ((*item)["properties"], data["["properties"]"]);
 //     EXPECT_TRUE(dynamic_cast<Item*>(item) != nullptr);
 // }

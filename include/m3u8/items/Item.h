@@ -2,12 +2,9 @@
 
 #include <iostream>
 #include <map>
-#include <nlohmann/json.hpp>
-#include <string>
 
-#include "AttributeList.h"
-
-#define LOGD std::cerr
+#include <m3u8/items/AttributeList.h>
+#include <m3u8/items/PropertyList.h>
 
 using json = nlohmann::json;
 
@@ -20,38 +17,7 @@ typedef enum {
 } ItemType_t;
 
 class Item : public json {
-   public:
-    class PropertyList : public json {
-       public:
-        PropertyList(json props = json::object()) : json(json::object())
-        {
-            (*this)["byteRange"]               = "";
-            (*this)["daiPlacementOpportunity"] = json::object();
-            (*this)["date"]                    = json::object();
-            (*this)["discontinuity"]           = false;
-            (*this)["duration"]                = 0.0;
-            (*this)["title"]                   = "";
-            (*this)["uri"]                     = "";
-
-            for (json::iterator it = props.begin(); it != props.end(); ++it) {
-                std::string key   = it.key();
-                std::string value = it.value();
-                this->set(toLowerCase(key), value);
-            }
-        }
-        json get(std::string key) { return (*this)[key]; }
-
-        void set(std::string key, json value)
-        {
-            (*this)[toLowerCase(key)] = value;
-        }
-    };
-
-   public:
-    AttributeList attributeList;
-    PropertyList propertyList;
-
-   public:
+public:
     Item(json data = json::object())
         : json(json::object()),
           attributeList(data),
@@ -66,12 +32,55 @@ class Item : public json {
     {
         setData(json::parse(data));
     }
+
+public:
+    AttributeList attributeList;
+    PropertyList propertyList;
+
+public:
     virtual ItemType_t itemType() { return ItemTypeMax; };
 
+    template <typename T = json>
+    T get(std::string key)
+    {
+        if (propertiesHasKey(key)) {
+            return propertyList[key].get<T>();
+        }
+        else if (attributesHasKey(key)) {
+            return attributeList[key].get<T>();
+        }
+        else {
+            return T();
+        }
+    }
+
+    std::string toString()
+    {
+        return std::string("") + dump() + "\n" + "{" + attributeList.dump(4)
+               + propertyList.dump(4) + "}";
+    }
+
+    static std::string StringType(ItemType_t type)
+    {
+        switch (type) {
+            case ItemTypePlaylist:
+                return "Playlist";
+            case ItemTypeStream:
+                return "Stream";
+            case ItemTypeIframeStream:
+                return "IframeStream";
+            case ItemTypeMedia:
+                return "Media";
+            default:
+                return "Unknown";
+        }
+    }
+
+protected:
     void setData(json data)
     {
         for (json::iterator it = data.begin(); it != data.end(); ++it) {
-            this->set(it.key(), it.value());
+            set(it.key(), it.value());
         }
     }
 
@@ -87,11 +96,11 @@ class Item : public json {
 
     void set(std::string key, json value)
     {
-        if (this->propertiesHasKey(key)) {
+        if (propertiesHasKey(key)) {
             // std::cout << key << ":" << value << "\n";
             propertyList[key] = value;
         }
-        else if (this->attributesHasKey(key)) {
+        else if (attributesHasKey(key)) {
             attributeList[key] = value;
         }
         else {
@@ -100,33 +109,9 @@ class Item : public json {
         // std::cout << (*this).dump() << "\n";
     }
 
-    json get(std::string key)
-    {
-        if (this->propertiesHasKey(key)) {
-            return propertyList[key];
-        }
-        else if (this->attributesHasKey(key)) {
-            return attributeList[key];
-        }
-        else {
-            return json::object();
-        }
-    }
-
-    json getBoolean(std::string key)
-    {
-        json value = this->get(key);
-        if (value.is_boolean()) {
-            return value;
-        }
-        else {
-            return json::object();
-        }
-    }
-
     void setProperty(std::string key, json value)
     {
-        if (this->propertiesHasKey(key)) {
+        if (propertiesHasKey(key)) {
             // std::cout << key << ":" << value << "\n";
             propertyList[key] = value;
         }
@@ -136,21 +121,10 @@ class Item : public json {
         // std::cout << (*this).dump() << "\n";
     }
 
-    json getProperty(std::string key)
-    {
-        if (this->propertiesHasKey(key)) {
-            return propertyList[key];
-        }
-        else {
-            std::cerr << "Invalid property : " << key << std::endl;
-            return json::object();
-        }
-    }
-
     void setAttribute(std::string key, json value)
     {
         std::string k = toLowerCase(key);
-        if (this->attributesHasKey(k)) {
+        if (attributesHasKey(k)) {
             attributeList[k] = value;
         }
         else {
@@ -159,25 +133,7 @@ class Item : public json {
         // std::cout << (*this).dump() << "\n";
     }
 
-    json attribute(std::string key)
-    {
-        std::string k = toLowerCase(key);
-        if (this->attributesHasKey(k)) {
-            return attributeList[k];
-        }
-        else {
-            std::cerr << "Invalid property : " << key << std::endl;
-            return json::object();
-        }
-    }
-
-    std::string toString()
-    {
-        return std::string("") + dump() + "\n" + "{" + attributeList.dump(4)
-               + propertyList.dump(4) + "}";
-    }
-
-   private:
+private:
     static std::string toLowerCase(const std::string& str)
     {
         std::string lowerStr = str;

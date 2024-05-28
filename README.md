@@ -13,13 +13,22 @@ All the test-cases passed but I am still not sure if everything works as expecte
 ```bash
 sudo apt install nlohmann-json3-dev libcurl4-openssl-dev
 mkdir build && cd build
-cmake .. && make -j
+cmake .. -DCMAKE_BUILD_TYPE=Debug && make -j
 ```
 
 ## Run
 
-```
+```bash
 ./m3u8-test
 ./m3u8-example ../test/fixtures/variant.m3u8
 ./m3u8-example https://muiplayer.js.org/media/media.m3u8
+```
+
+## Code Style
+
+Need `clang-format-12` at least.
+
+```bash
+find . -name "*.h" | xargs clang-format -i
+find . -name "*.cpp" | xargs clang-format -i
 ```

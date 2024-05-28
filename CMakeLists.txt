@@ -6,13 +6,11 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # Common
 ################################################################################
 
-find_package(CURL REQUIRED)
+option (WITH_CURL "Option with libcurl" ON)
 
 include_directories(
     include
 )
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -O0")
 
 ################################################################################
 # Install
@@ -35,16 +33,19 @@ add_executable(
     example/file.cpp
 )
 
-add_executable(
-    m3u8-url
-    example/url.cpp
-)
+IF(WITH_CURL)
+    find_package(CURL REQUIRED)
+    add_executable(
+        m3u8-url
+        example/url.cpp
+    )
 
-target_link_libraries(
-    m3u8-url
-    ${CURL_LIBRARIES}
-    -pthread
-)
+    target_link_libraries(
+        m3u8-url
+        ${CURL_LIBRARIES}
+        -pthread
+    )
+ENDIF(WITH_CURL)
 
 ################################################################################
 # Test Cases

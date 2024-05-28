@@ -1,9 +1,16 @@
 #pragma once
 
 #include <m3u8/Parser.h>
+#include <fstream>
 
 class FileParser : public M3UParser {
 public:
+    FileParser() {}
+    FileParser(std::string uri, CallbackFunc callback) : FileParser()
+    {
+        setCallback(callback);
+        parseFile(uri);
+    }
     int parseFile(std::string uri)
     {
         std::ifstream file(uri);
@@ -19,7 +26,7 @@ public:
         }
 
         if (callback != NULL) {
-            callback(M3u8Callback, this->m3u8());
+            callback(M3u8Callback, m3u8());
         }
         return 0;
     }

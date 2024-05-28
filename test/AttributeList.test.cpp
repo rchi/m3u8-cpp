@@ -7,7 +7,7 @@
 using json = nlohmann::json;
 
 class AttributeListTest : public ::testing::Test {
-   protected:
+protected:
     AttributeList* createAttributeList()
     {
         AttributeList* list = new AttributeList;
@@ -20,7 +20,7 @@ class AttributeListTest : public ::testing::Test {
 TEST_F(AttributeListTest, Set)
 {
     AttributeList* list = createAttributeList();
-
+    // std::cout << list->toString() << "\n";
     EXPECT_EQ((*list)["bandwidth"], 1);
 }
 

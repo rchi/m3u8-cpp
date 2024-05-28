@@ -1,93 +1,95 @@
 #pragma once
 
-#include <algorithm>
-#include <cctype>
-#include <fstream>
-#include <iostream>
-#include <locale>
-#include <map>
-#include <nlohmann/json.hpp>
-#include <regex>
-#include <sstream>
-#include <string>
-#include <vector>
-
 #include <m3u8/M3u8.h>
+
+#include <regex>
 
 using json = nlohmann::json;
 
 class M3UParser {
-   public:
+public:
     typedef enum {
         ItemCallback,
         M3u8Callback,
     } CallbackType_t;
 
-   public:
-    M3UParser() : callback(NULL)
+public:
+    using CallbackFunc
+        = std::function<void(CallbackType_t type, std::shared_ptr<void>)>;
+
+    M3UParser() : callback(nullptr), playlistDiscontinuity(false)
     {
-        this->linesRead   = 0;
-        this->m3u         = new M3u8;
-        this->tagHandlers = {
+        linesRead   = 0;
+        m3u         = std::make_shared<M3u8>();
+        tagHandlers = {
             {"EXTINF",
-             [this](const std::string &data) { return this->parseInf(data); }},
+             [this](const std::string &data) { return parseInf(data); }},
             {"EXT-X-DISCONTINUITY",
              [this](const std::string &data) {
-                 return this->parseDiscontinuity(data);
+                 return parseDiscontinuity(data);
              }},
             {"EXT-X-BYTERANGE",
-             [this](const std::string &data) {
-                 return this->parseByteRange(data);
-             }},
+             [this](const std::string &data) { return parseByteRange(data); }},
             {"EXT-X-STREAM-INF",
-             [this](const std::string &data) {
-                 return this->parseStreamInf(data);
-             }},
+             [this](const std::string &data) { return parseStreamInf(data); }},
             {"EXT-X-I-FRAME-STREAM-INF",
              [this](const std::string &data) {
-                 return this->parseIFrameStreamInf(data);
+                 return parseIFrameStreamInf(data);
              }},
-            {"EXT-X-MEDIA", [this](const std::string &data) {
-                 return this->parseMedia(data);
-             }}};
+            {"EXT-X-MEDIA",
+             [this](const std::string &data) { return parseMedia(data); }}};
     }
 
-    using CallbackFunc = std::function<void(CallbackType_t type, void *)>;
     void setCallback(CallbackFunc callback) { this->callback = callback; }
 
     void parse(std::string line)
     {
         line = trim(line);
-        if (this->linesRead == 0) {
+        if (linesRead == 0) {
             if (line != "#EXTM3U") {
                 // emit 'error' event
                 throw std::runtime_error("Non-valid M3u8 file. First line: "
                                          + line);
             }
-            this->linesRead++;
+            linesRead++;
             return;
         }
         if (line == "#EXT-X-ENDLIST" || line.empty()) {
             if (line == "#EXT-X-ENDLIST") {
-                this->m3u->set("playlistType", "VOD");
+                m3u->set("playlistType", "VOD");
             }
+            // std::cout << m3u->toString() << std::endl;
             return;
         }
         if (line[0] == '#') {
-            this->parseLine(line);
+            parseLine(line);
         }
         else {
-            // if (this->m3u->getCurrentItem()->get("uri") != nullptr) {
-            //     this->m3u->addItem(new PlaylistItem);
+            // if (m3u->getCurrentItem()->get("uri") != nullptr) {
+            //     m3u->addItem(std::make_shared<PlaylistItem>());
             // }
-            this->m3u->setCurrent("uri", line);
+            m3u->setCurrent("uri", line);
             // emit 'item' event
-            if (callback != NULL) {
-                callback(ItemCallback, getCurrentItem().get());
+            if (callback != nullptr) {
+                callback(ItemCallback, getCurrentItem());
             }
         }
-        this->linesRead++;
+        linesRead++;
     }
+
+    std::shared_ptr<M3u8> m3u8() { return m3u; }
+
+    void merge(std::shared_ptr<M3u8> from, size_t max = 0)
+    {
+        m3u8()->merge(from, max, [this](std::shared_ptr<Item> item) {
+            if (callback != nullptr) {
+                callback(ItemCallback, item);
+            }
+        });
+    }
+
+protected:
+    std::shared_ptr<Item> getCurrentItem() { return m3u->getCurrentItem(); }
 
     void parseLine(std::string line)
     {
@@ -97,33 +99,29 @@ class M3UParser {
             tag = iss.str();
         }
         // std::cout << line << "->" << tag << ":" << data << "\n";
-        auto handler = this->tagHandlers.find(tag);
-        if (handler != this->tagHandlers.end()) {
+        auto handler = tagHandlers.find(tag);
+        if (handler != tagHandlers.end()) {
             handler->second(data);
         }
         else {
-            this->m3u->set(tag, data);
+            m3u->set(tag, data);
         }
     }
-
-    M3u8 *m3u8() { return m3u; }
-
-    std::shared_ptr<Item> getCurrentItem() { return m3u->getCurrentItem(); }
 
     void parseInf(std::string data)
     {
         // std::cout << data << "\n";
         std::shared_ptr<Item> item = std::make_shared<PlaylistItem>();
-        this->m3u->addItem(item);
+        m3u->addItem(item);
 
         std::vector<std::string> dataSplit = split(data, ',');
-        this->m3u->setCurrent("duration", std::stof(dataSplit[0]));
+        m3u->setCurrent("duration", std::stof(dataSplit[0]));
         if (dataSplit.size() > 1) {
-            this->m3u->setCurrent("title", dataSplit[1]);
+            m3u->setCurrent("title", dataSplit[1]);
         }
-        if (this->playlistDiscontinuity) {
-            this->m3u->setCurrent("discontinuity", true);
-            this->playlistDiscontinuity = false;
+        if (playlistDiscontinuity) {
+            m3u->setCurrent("discontinuity", true);
+            playlistDiscontinuity = false;
         }
         // std::cout << getCurrentItem()->toString() << "\n";
     }
@@ -131,43 +129,43 @@ class M3UParser {
     void parseDiscontinuity(std::string data)
     {
         // std::cout << data << "\n";
-        this->playlistDiscontinuity = true;
+        playlistDiscontinuity = true;
     }
 
     void parseByteRange(std::string data)
     {
         // std::cout << data << "\n";
-        this->m3u->setCurrent("byteRange", data);
+        m3u->setCurrent("byteRange", data);
     }
 
     void parseStreamInf(std::string data)
     {
         // std::cout << data << "\n";
         std::shared_ptr<Item> item
-            = std::make_shared<StreamItem>(this->parseAttributes(data));
-        this->m3u->addItem(item);
+            = std::make_shared<StreamItem>(parseAttributes(data));
+        m3u->addItem(item);
     }
 
     void parseIFrameStreamInf(std::string data)
     {
         std::shared_ptr<Item> item
-            = std::make_shared<IframeStreamItem>(this->parseAttributes(data));
-        this->m3u->addItem(item);
+            = std::make_shared<IframeStreamItem>(parseAttributes(data));
+        m3u->addItem(item);
         // emit 'item' event
-        if (callback != NULL) {
-            callback(ItemCallback, getCurrentItem().get());
+        if (callback != nullptr) {
+            callback(ItemCallback, getCurrentItem());
         }
     }
 
     void parseMedia(std::string data)
     {
         std::shared_ptr<Item> item
-            = std::make_shared<MediaItem>(this->parseAttributes(data));
+            = std::make_shared<MediaItem>(parseAttributes(data));
         // std::cout << mediaItem->dump(4) << "\n";
-        this->m3u->addItem(item);
+        m3u->addItem(item);
         // emit 'item' event
-        if (callback != NULL) {
-            callback(ItemCallback, getCurrentItem().get());
+        if (callback != nullptr) {
+            callback(ItemCallback, getCurrentItem());
         }
     }
 
@@ -193,7 +191,7 @@ class M3UParser {
         return result;
     }
 
-   private:
+private:
     std::vector<std::string> split(const std::string &s, char delimiter)
     {
         std::vector<std::string> tokens;
@@ -215,11 +213,12 @@ class M3UParser {
         return str.substr(first, (last - first + 1));
     }
 
-   protected:
+protected:
     CallbackFunc callback;
-   private:
+
+private:
     int linesRead;
-    M3u8 *m3u;
+    std::shared_ptr<M3u8> m3u;
     bool playlistDiscontinuity;
     std::map<std::string, std::function<void(std::string)>> tagHandlers;
 };

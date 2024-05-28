@@ -10,21 +10,22 @@ extern std::string path;
 using json = nlohmann::json;
 
 class ParserTestIFrame : public ::testing::Test {
-   protected:
+protected:
     FileParser* getParser()
     {
-        bool done         = false;
-        int count         = 0;
+        bool done          = false;
+        int count          = 0;
         FileParser* parser = new FileParser;
-        parser->setCallback([&](FileParser::CallbackType_t type, void*) {
-            if (type == FileParser::ItemCallback) {
-                count++;
-            }
-            else if (type == FileParser::M3u8Callback) {
-                EXPECT_EQ(count, 36);
-                done = true;
-            }
-        });
+        parser->setCallback(
+            [&](FileParser::CallbackType_t type, std::shared_ptr<void>) {
+                if (type == FileParser::ItemCallback) {
+                    count++;
+                }
+                else if (type == FileParser::M3u8Callback) {
+                    EXPECT_EQ(count, 36);
+                    done = true;
+                }
+            });
 
         EXPECT_EQ(parser->parseFile(path + "/iframe.m3u8"), 0);
 
@@ -49,9 +50,9 @@ TEST_F(ParserTestIFrame, ProperHeaders)
 TEST_F(ParserTestIFrame, FirstIframeStreamItem)
 {
     FileParser* parser = getParser();
-    auto item = parser->m3u8()->items[ItemTypePlaylist][0];
+    auto item          = parser->m3u8()->getItem(ItemTypePlaylist, 0);
     EXPECT_NE(item, nullptr);
-    if(item != NULL) {
+    if (item != NULL) {
         EXPECT_EQ(item->get("title"), "");
         EXPECT_EQ(item->get("duration"), 5);
         EXPECT_EQ(item->get("byteRange"), "376@940");

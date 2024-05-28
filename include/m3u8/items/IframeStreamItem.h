@@ -1,11 +1,9 @@
 #pragma once
 
-#include <string>
-
 #include <m3u8/items/StreamItem.h>
 
 class IframeStreamItem : public StreamItem {
-   public:
+public:
     IframeStreamItem(json data = json::object()) : StreamItem(data)
     {
         propertyList.erase("uri");

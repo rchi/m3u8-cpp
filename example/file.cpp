@@ -2,8 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-
-    FileParser *parser = new FileParser;
+    std::shared_ptr<FileParser> parser = std::make_shared<FileParser>();
     parser->parseFile(argv[1]);
     std::cerr << parser->m3u8()->toString() << std::endl;
 

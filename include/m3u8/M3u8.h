@@ -1,16 +1,16 @@
 #pragma once
 
-#include <map>
-#include <nlohmann/json.hpp>
-#include <string>
-#include <vector>
-
 #include <m3u8/items/AttributeList.h>
 #include <m3u8/items/IframeStreamItem.h>
 #include <m3u8/items/Item.h>
 #include <m3u8/items/MediaItem.h>
 #include <m3u8/items/PlaylistItem.h>
 #include <m3u8/items/StreamItem.h>
+
+#include <map>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <vector>
 
 class PlaylistItem;
 class StreamItem;
@@ -19,8 +19,10 @@ class MediaItem;
 
 using json = nlohmann::json;
 
-class M3u8 : public json {
-   public:
+class M3u8 : public JsonBase {
+    friend class M3UParser;
+
+public:
     M3u8() : current(nullptr)
     {
         items[ItemTypePlaylist]     = std::vector<std::shared_ptr<Item>>();
@@ -28,71 +30,161 @@ class M3u8 : public json {
         items[ItemTypeIframeStream] = std::vector<std::shared_ptr<Item>>();
         items[ItemTypeMedia]        = std::vector<std::shared_ptr<Item>>();
         (*this)["properties"]       = json::object();
-        (*this)["properties"]["iframesOnly"]         = json::object();
+        (*this)["properties"]["iframesOnly"]         = json::boolean_t();
         (*this)["properties"]["independentSegments"] = json::object();
-        (*this)["properties"]["targetDuration"]      = json::object();
-        (*this)["properties"]["mediaSequence"]       = json::object();
-        (*this)["properties"]["version"]             = json::object();
+        (*this)["properties"]["targetDuration"]      = json::number_integer_t();
+        (*this)["properties"]["mediaSequence"]       = json::number_integer_t();
+        (*this)["properties"]["version"]             = json::number_integer_t();
     }
+
+    std::map<std::string, std::string> keyMap
+        = {{"EXT-X-ALLOW-CACHE", "allowCache"},
+           {"EXT-X-I-FRAMES-ONLY", "iframesOnly"},
+           {"EXT-X-INDEPENDENT-SEGMENTS", "independentSegments"},
+           {"EXT-X-MEDIA-SEQUENCE", "mediaSequence"},
+           {"EXT-X-PLAYLIST-TYPE", "playlistType"},
+           {"EXT-X-TARGETDURATION", "targetDuration"},
+           {"EXT-X-VERSION", "version"}};
 
     json get(std::string key)
     {
-        json object;
-        if (key == "EXT-X-ALLOW-CACHE") {
-            object = get("allowCache");
-        }
-        else if (key == "EXT-X-I-FRAMES-ONLY") {
-            object = get("iframesOnly");
-        }
-        else if (key == "EXT-X-INDEPENDENT-SEGMENTS") {
-            object = get("independentSegments");
-        }
-        else if (key == "EXT-X-MEDIA-SEQUENCE") {
-            object = get("mediaSequence");
-        }
-        else if (key == "EXT-X-PLAYLIST-TYPE") {
-            object = get("playlistType");
-        }
-        else if (key == "EXT-X-TARGETDURATION") {
-            object = get("targetDuration");
-        }
-        else if (key == "EXT-X-VERSION") {
-            object = get("version");
+        if (keyMap.count(key) > 0) {
+            return get(keyMap[key]);
         }
         else {
-            object = (*this)["properties"][key];
+            return (*this)["properties"][key];
         }
-        return object;
     }
 
     void set(std::string key, json value)
     {
-        if (key == "EXT-X-ALLOW-CACHE") {
-            set("allowCache", value);
-        }
-        else if (key == "EXT-X-I-FRAMES-ONLY") {
-            set("iframesOnly", true);
-        }
-        else if (key == "EXT-X-INDEPENDENT-SEGMENTS") {
-            set("independentSegments", value);
-        }
-        else if (key == "EXT-X-MEDIA-SEQUENCE") {
-            set("mediaSequence", std::stoi(value.get<std::string>()));
-        }
-        else if (key == "EXT-X-PLAYLIST-TYPE") {
-            set("playlistType", value);
-        }
-        else if (key == "EXT-X-TARGETDURATION") {
-            set("targetDuration", std::stoi(value.get<std::string>()));
-        }
-        else if (key == "EXT-X-VERSION") {
-            set("version", std::stoi(value.get<std::string>()));
+        if (keyMap.count(key) > 0) {
+            set(keyMap[key], value);
         }
         else {
-            (*this)["properties"][key] = value;
+            JsonBase::set(&((*this)["properties"]), key, value);
         }
     }
 
+    size_t getItemCount(ItemType_t type) { return items[type].size(); }
+
+    std::shared_ptr<Item> getItem(ItemType_t type, int index)
+    {
+        return std::static_pointer_cast<Item>(items[type][index]);
+    }
+
+    std::shared_ptr<Item> getLastItem(ItemType_t type)
+    {
+        if (items[type].size() == 0) {
+            return nullptr;
+        }
+        return items[type].back();
+    }
+
+    std::vector<double> domainDurations()
+    {
+        std::vector<double> durations = {0};
+        int index                     = 0;
+        for (const auto &item : items[ItemTypePlaylist]) {
+            if (item->propertyList["discontinuity"].is_boolean()) {
+                if ((bool)item->propertyList["discontinuity"]) {
+                    durations.push_back(0);
+                    index++;
+                }
+            }
+            if (item->propertyList["duration"].is_number()) {
+                double duration = item->propertyList["duration"];
+                durations[index] += duration;
+            }
+        }
+        return durations;
+    }
+
+    double totalDuration()
+    {
+        double total = 0;
+        for (const auto &item : items[ItemTypePlaylist]) {
+            if (item->propertyList["duration"].is_number()) {
+                double duration = item->propertyList["duration"];
+                total += duration;
+            }
+        }
+        return total;
+    }
+
+    void mergeProperties(M3u8 *from)
+    {
+        for (json::iterator it = (*from)["properties"].begin();
+             it != (*from)["properties"].end(); ++it) {
+            double m3uTgt  = 0;
+            double thisTgt = 0;
+            if (it.key() == "targetDuration") {
+                if (from->get("targetDuration").is_number()) {
+                    m3uTgt = from->get("targetDuration");
+                }
+                if (get("targetDuration").is_number()) {
+                    thisTgt = get("targetDuration");
+                }
+                if (m3uTgt > thisTgt) {
+                    set("targetDuration", from->get("targetDuration"));
+                }
+            }
+            else {
+                set(it.key(), it.value());
+            }
+        }
+    }
+
+    void merge(std::shared_ptr<M3u8> from, size_t max,
+               std::function<void(std::shared_ptr<Item>)> callback = nullptr)
+    {
+        mergeProperties(from.get());
+
+        for (auto i : items) {
+            for (const auto &newItem : from->items[i.first]) {
+                auto it
+                    = std::find_if(items[i.first].begin(), items[i.first].end(),
+                                   [&newItem](const auto &existingItem) {
+                                       return existingItem->propertyList["uri"]
+                                              == newItem->propertyList["uri"];
+                                   });
+                if (it != items[i.first].end()) {
+                    *it = newItem;
+                }
+                else {
+                    items[i.first].push_back(newItem);
+                    if (callback != nullptr) {
+                        callback(newItem);
+                    }
+                }
+            }
+
+            if (max > 0 && items[i.first].size() > max) {
+                items[i.first].erase(
+                    items[i.first].begin(),
+                    items[i.first].begin() + (items[i.first].size() - max));
+            }
+        }
+        // std::cout << toString() << std::endl;
+    }
+
+    std::string toString()
+    {
+        std::string str = dump(4);
+        for (auto i : items) {
+            str += "\n{ " + Item::StringType(i.first)
+                   + "Count: " + std::to_string(i.second.size()) + ", ";
+            for (auto j : i.second) {
+                str += j->toString() + "\n";
+                // std::cout << j.get() << "\n";
+            }
+            str += "}\n";
+        }
+
+        return str;
+    }
+
+public:
     std::shared_ptr<Item> getCurrentItem() { return current; }
 
     void setCurrent(std::string key, json value)
@@ -118,15 +210,10 @@ class M3u8 : public json {
 
     void removePlaylistItem(int index)
     {
-        if (index >= items[ItemTypePlaylist].size()) {
+        if (index >= getItemCount(ItemTypePlaylist)) {
             throw std::out_of_range("Index out of range");
         }
         items[ItemTypePlaylist].erase(items[ItemTypePlaylist].begin() + index);
-    }
-
-    std::shared_ptr<Item> getItem(ItemType_t type, int index)
-    {
-        return std::static_pointer_cast<Item>(items[type][index]);
     }
 
     void addMediaItem(std::shared_ptr<MediaItem> item)
@@ -144,72 +231,9 @@ class M3u8 : public json {
         items[ItemTypeIframeStream].push_back(std::shared_ptr<Item>(item));
     }
 
-    std::vector<double> domainDurations()
-    {
-        std::vector<double> durations = {0};
-        int index                     = 0;
-        for (const auto& item : items[ItemTypePlaylist]) {
-            if (item->propertyList["discontinuity"].is_boolean()) {
-                if ((bool)item->propertyList["discontinuity"]) {
-                    durations.push_back(0);
-                    index++;
-                }
-            }
-            if (item->propertyList["duration"].is_number()) {
-                double duration = item->propertyList["duration"];
-                durations[index] += duration;
-            }
-        }
-        return durations;
-    }
-
-    double totalDuration()
-    {
-        double total = 0;
-        for (const auto& item : items[ItemTypePlaylist]) {
-            if (item->propertyList["duration"].is_number()) {
-                double duration = item->propertyList["duration"];
-                total += duration;
-            }
-        }
-        return total;
-    }
-
-    void merge(M3u8* m3u)
-    {
-        double m3uTgt  = 0;
-        double thisTgt = 0;
-        if (m3u->get("targetDuration").is_number()) {
-            m3uTgt = m3u->get("targetDuration");
-        }
-        if (this->get("targetDuration").is_number()) {
-            thisTgt = this->get("targetDuration");
-        }
-        if (m3uTgt > thisTgt) {
-            this->set("targetDuration", m3u->get("targetDuration"));
-        }
-        m3u->items[ItemTypePlaylist][0]->propertyList["discontinuity"] = true;
-        items[ItemTypePlaylist].insert(items[ItemTypePlaylist].end(),
-                                       m3u->items[ItemTypePlaylist].begin(),
-                                       m3u->items[ItemTypePlaylist].end());
-    }
-
-    std::string toString()
-    {
-        std::string str = this->dump(4);
-        for (auto i : items) {
-            for (auto j : i.second) {
-                str += j->toString() + "\n";
-                // std::cout << j.get() << "\n";
-            }
-        }
-
-        return str;
-    }
-
-   public:
+public:
     std::map<ItemType_t, std::vector<std::shared_ptr<Item>>> items;
 
-   private:
+private:
     std::shared_ptr<Item> current;
 };
