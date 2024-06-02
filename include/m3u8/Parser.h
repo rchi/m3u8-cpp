@@ -17,10 +17,12 @@ public:
     using CallbackFunc
         = std::function<void(CallbackType_t type, std::shared_ptr<void>)>;
 
-    M3UParser() : callback(nullptr), playlistDiscontinuity(false)
+    M3UParser()
+        : callback(nullptr),
+          linesRead(0),
+          m3u(std::make_shared<M3u8>()),
+          playlistDiscontinuity(false)
     {
-        linesRead   = 0;
-        m3u         = std::make_shared<M3u8>();
         tagHandlers = {
             {"EXTINF",
              [this](const std::string &data) { return parseInf(data); }},
@@ -77,15 +79,28 @@ public:
         linesRead++;
     }
 
-    std::shared_ptr<M3u8> m3u8() { return m3u; }
+    std::shared_ptr<M3u8> m3u8()
+    {
+        if (m3u == nullptr) {
+            std::cerr << "m3u is null. Check if Parser destroyed." << std::endl;
+            return std::make_shared<M3u8>();
+        }
+        return m3u;
+    }
 
     void merge(std::shared_ptr<M3u8> from, size_t max = 0)
     {
-        m3u8()->merge(from, max, [this](std::shared_ptr<Item> item) {
-            if (callback != nullptr) {
-                callback(ItemCallback, item);
-            }
-        });
+        if (m3u8() == nullptr) {
+            std::cerr << "m3u8() is null" << std::endl;
+            return;
+        }
+        else {
+            m3u8()->merge(from, max, [this](std::shared_ptr<Item> item) {
+                if (callback != nullptr) {
+                    callback(ItemCallback, item);
+                }
+            });
+        }
     }
 
 protected:
@@ -123,7 +138,8 @@ protected:
             m3u->setCurrent("discontinuity", true);
             playlistDiscontinuity = false;
         }
-        // std::cout << getCurrentItem()->toString() << "\n";
+        // std::cout << "parseInf: "
+        //           << data << "\n" << getCurrentItem()->toString() << "\n";
     }
 
     void parseDiscontinuity(std::string data)

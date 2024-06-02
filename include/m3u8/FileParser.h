@@ -1,6 +1,7 @@
 #pragma once
 
 #include <m3u8/Parser.h>
+
 #include <fstream>
 
 class FileParser : public M3UParser {

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <iostream>
-#include <map>
-
 #include <m3u8/items/AttributeList.h>
 #include <m3u8/items/PropertyList.h>
+
+#include <iostream>
+#include <map>
 
 using json = nlohmann::json;
 

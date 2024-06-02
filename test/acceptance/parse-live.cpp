@@ -59,10 +59,13 @@ TEST_F(ParserTestLive, continue)
         // std::cout << parser->m3u8()->toString() << "\n\n\n";
         EXPECT_EQ(parser->m3u8()->getItemCount(ItemTypePlaylist),
                   (i == 0 ? 3 : 4));
-        std::string uri
-            = std::to_string(i + 3) + "_" + std::to_string(i + 3) + ".ts";
-        EXPECT_EQ(parser->m3u8()->getLastItem(ItemTypePlaylist)->get("uri"),
-                  uri);
+        EXPECT_NE(parser->m3u8()->getLastItem(ItemTypePlaylist), nullptr);
+        if (parser->m3u8()->getLastItem(ItemTypePlaylist) != nullptr) {
+            std::string uri
+                = std::to_string(i + 3) + "_" + std::to_string(i + 3) + ".ts";
+            EXPECT_EQ(parser->m3u8()->getLastItem(ItemTypePlaylist)->get("uri"),
+                      uri);
+        }
     }
 
     std::string content = generateContent(i + 1);

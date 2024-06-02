@@ -85,7 +85,8 @@ public:
         }
         merge(parser.m3u8(), max);
 
-        // std::cout << m3u8()->toString() << std::endl;
+        // std::cout << "readNext: " << readBuffer << "\n"
+        //           << m3u8()->toString() << "\n";
         if (callback != NULL) {
             callback(M3u8Callback, m3u8());
         }

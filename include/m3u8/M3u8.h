@@ -138,9 +138,12 @@ public:
     void merge(std::shared_ptr<M3u8> from, size_t max,
                std::function<void(std::shared_ptr<Item>)> callback = nullptr)
     {
+        // std::cout << "merge: Before: " << toString() << std::endl;
+        // std::cout << "merge: From: " << from->toString() << std::endl;
+
         mergeProperties(from.get());
 
-        for (auto i : items) {
+        for (auto i : from->items) {
             for (const auto &newItem : from->items[i.first]) {
                 auto it
                     = std::find_if(items[i.first].begin(), items[i.first].end(),
@@ -165,7 +168,7 @@ public:
                     items[i.first].begin() + (items[i.first].size() - max));
             }
         }
-        // std::cout << toString() << std::endl;
+        // std::cout << "merge: After: " << toString() << std::endl;
     }
 
     std::string toString()
