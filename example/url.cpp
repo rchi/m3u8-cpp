@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 {
     signal(SIGINT, signalHandler);
 
-    if (!strncmp(argv[1], "http://", 7 || !strncmp(argv[1], "https://", 8))) {
+    if (!strncmp(argv[1], "http://", 7) || !strncmp(argv[1], "https://", 8)) {
         std::string base       = argv[1];
         std::size_t last_slash = base.find_last_of('/');
         if (last_slash != std::string::npos) {

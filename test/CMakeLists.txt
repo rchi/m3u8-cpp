@@ -12,9 +12,12 @@ add_executable(
     ${TEST_SRC}
 )
 
+add_library(gtestlib SHARED IMPORTED)
+set_property(TARGET gtestlib PROPERTY IMPORTED_LOCATION "/opt/homebrew/lib/libgtest.a")
+
 target_link_libraries(
     m3u8-test
-    gtest
+    gtestlib
     ${CURL_LIBRARIES}
     -pthread
 )

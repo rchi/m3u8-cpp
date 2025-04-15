@@ -20,7 +20,7 @@ public:
     {
         run = true;
         t   = std::thread([this, uri, max]() {
-            pthread_setname_np(pthread_self(), "UrlParser");
+            pthread_setname_np(/*pthread_self(),*/ "UrlParser");
 
             CURL *curl;
             std::string readBuffer;

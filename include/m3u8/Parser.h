@@ -3,6 +3,7 @@
 #include <m3u8/M3u8.h>
 
 #include <regex>
+#include <sstream>
 
 using json = nlohmann::json;
 

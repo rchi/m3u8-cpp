@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 
     auto createPlaylist = [&]() {
         if (!strncmp(argv[1], "http://",
-                     7 || !strncmp(argv[1], "https://", 8))) {
+                     7) || !strncmp(argv[1], "https://", 8)) {
             static std::atomic<bool> signal_received(false);
             std::condition_variable cv;
             std::mutex cv_m;
@@ -254,22 +254,24 @@ int main(int argc, char *argv[])
 
     auto openDecoder = [&](AVCodecContext *pCodecCtx) {
         DBG_ElapsedTimer("openDecoder");
-        AVCodec *pCodec = NULL;
+        const AVCodec* nullCodec = NULL;
         do {
             // Find the decoder for the media stream
-            pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
+            const AVCodec* pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
             if (pCodec == NULL) {
                 fprintf(stderr, "Unsupported codec!\n");
+                return nullCodec;
                 break;  // Codec not found
             }
             // Open codec
-            if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
+            if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
                 fprintf(stderr, "Failed to open codec!\n");
-                pCodec = NULL;
+                return nullCodec;
                 break;  // Could not open codec
             }
+            return pCodec;
         } while (0);
-        return pCodec;
+        return nullCodec;
     };
 
     auto scaleVideo = [&]() {
@@ -390,7 +392,7 @@ int main(int argc, char *argv[])
 
     auto closeMedia = [&]() {
         DBG_ElapsedTimer("closeMedia");
-        avcodec_close(pVideoCodecCtx);
+        //avcodec_close(pVideoCodecCtx);
         avcodec_free_context(&pVideoCodecCtx);
         if (pFormatCtx != NULL) {
             avformat_close_input(&pFormatCtx);
@@ -451,7 +453,8 @@ int main(int argc, char *argv[])
                         < 0) {
                         break;
                     }
-                    if ((pVideoCodec = openDecoder(pVideoCodecCtx)) == NULL) {
+                    const AVCodec* pVideoCodec = openDecoder(pVideoCodecCtx);
+                    if (pVideoCodec == NULL) {
                         break;
                     }
 
